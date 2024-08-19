@@ -53,28 +53,28 @@ export const Widget = ({ projectId }) => {
             {submitted ? (
               <div>
                 <h3 className="text-lg font-bold">
-                  Thank you for your feedback!
+                  Obrigado pelo seu feedback!
                 </h3>
                 <p className="mt-4">
-                  We appreciate your feedback. It helps us improve our product
-                  and provide better service to our customers.
+                  Agradecemos o seu feedback. nos ajudará a melhorar nossos
+                  produtos e serviços para nossos clientes.
                 </p>
               </div>
             ) : (
               <div>
-                <h3 className="text-lg font-bold">Send us your feedback</h3>
+                <h3 className="text-lg font-bold">Envie seu feedback</h3>
                 <form className="space-y-2" onSubmit={submit}>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Name</Label>
-                      <Input id="name" placeholder="Enter your name" />
+                      <Label htmlFor="name">Nome</Label>
+                      <Input id="name" placeholder="Insira seu nome" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="email">E-mail</Label>
                       <Input
                         id="email"
                         type="email"
-                        placeholder="Enter your email"
+                        placeholder="Insira seu e-mail"
                       />
                     </div>
                   </div>
@@ -82,7 +82,7 @@ export const Widget = ({ projectId }) => {
                     <Label htmlFor="feedback">Feedback</Label>
                     <Textarea
                       id="feedback"
-                      placeholder="Tell us what you think"
+                      placeholder="Conte-nos o que achou do nosso serviço/produto"
                       className="min-h-[100px]"
                     />
                   </div>
@@ -100,7 +100,7 @@ export const Widget = ({ projectId }) => {
                         />
                       ))}
                     </div>
-                    <Button type="submit">Submit</Button>
+                    <Button type="submit">Enviar</Button>
                   </div>
                 </form>
               </div>
