@@ -17,10 +17,9 @@ export default defineConfig({
   },
   build: {
     lib: {
-      entry: "./src/index.tsx",
-      name: "MyWidget",
-      formats: ["es", "umd"],
-      fileName: (format) => `my-widget.${format}.js`,
+      entry: "./src/index.jsx",
+      name: "widget",
+      fileName: (format) => `widget.${format}.js`,
     },
     target: "esnext",
   },
