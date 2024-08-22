@@ -8,34 +8,101 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import tailwindStyles from "../index.css?inline";
 import supabase from "../supabaseClient";
 import { Checkbox } from "@/components/ui/checkbox";
 
+const bannedWords = ["spam", "advertisement", "compre", "https://"];
+
+const schema = z.object({
+  name: z
+    .string()
+    .min(4, "Nome deve ter pelo menos 4 letras")
+    .max(25, "Nome deve ter no máximo 50 letras")
+    .regex(/^[a-zA-Z\s]+$/, "Nome deve conter apenas letras e espaços"),
+
+  email: z
+    .string()
+    .email("Email inválido")
+    .max(25, "Email deve ter no máximo 100 caracteres"),
+
+  feedback: z
+    .string()
+    .max(255, "Descrição deve ter no máximo 255 caracteres")
+    .optional()
+    .refine(
+      (value) =>
+        bannedWords.every((word) => !value?.toLowerCase().includes(word)),
+      "Descrição contém palavras não permitidas"
+    ),
+
+  terms: z
+    .boolean()
+    .refine((value) => value === true, "Você deve aceitar os termos"),
+});
+
 export const Widget = ({ projectId }) => {
   const [rating, setRating] = useState(3);
   const [submitted, setSubmitted] = useState(false);
+  const [captchaValidated, setCaptchaValidated] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+    watch,
+  } = useForm({
+    resolver: zodResolver(schema),
+    mode: "onChange",
+  });
+
+  const feedbackLength = watch("feedback")?.length || 0;
+
+  const onCaptchaChange = () => {
+    setCaptchaValidated(true);
+  };
+
+  console.log("Form Validity:", isValid);
+  console.log("Form Errors:", errors);
 
   const onSelectStar = (index) => {
     setRating(index + 1);
   };
+  const submit = async (data) => {
+    if (!captchaValidated) {
+      alert("Por favor, complete o reCAPTCHA.");
+      return;
+    }
 
-  const submit = async (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const data = {
-      p_project_id: projectId,
-      p_user_name: form.name.value,
-      p_user_email: form.email.value,
-      p_message: form.feedback.value,
-      p_rating: rating,
-    };
-    const { data: returnedData, error } = await supabase.rpc(
-      "add_feedback",
-      data
-    );
-    setSubmitted(true);
-    console.log(returnedData);
+    try {
+      const feedbackData = {
+        p_project_id: projectId,
+        p_user_name: data.name,
+        p_user_email: data.email,
+        p_message: data.feedback,
+        p_rating: rating,
+      };
+
+      const { data: returnedData, error } = await supabase.rpc(
+        "add_feedback",
+        feedbackData
+      );
+
+      if (error) {
+        console.error("Error submitting feedback:", error.message);
+        alert("Erro ao enviar o feedback. Por favor, tente novamente.");
+        return;
+      }
+
+      setSubmitted(true);
+      console.log(returnedData);
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      alert("Ocorreu um erro inesperado. Por favor, tente novamente.");
+    }
   };
 
   return (
@@ -59,7 +126,7 @@ export const Widget = ({ projectId }) => {
                   Obrigado pelo seu feedback!
                 </h3>
                 <p className="mt-4">
-                  Agradecemos o seu feedback. nos ajudará a melhorar nossos
+                  Agradecemos o seu feedback. Nos ajudará a melhorar nossos
                   produtos e serviços para nossos clientes.
                 </p>
               </div>
@@ -68,7 +135,7 @@ export const Widget = ({ projectId }) => {
                 <h3 className="lg:text-2xl text-xl font-bold text-pretty tracking-[1px] pb-8 text-center antialiased">
                   Preencha o formulário para enviar seu feedback
                 </h3>
-                <form className="space-y-2" onSubmit={submit}>
+                <form className="space-y-2" onSubmit={handleSubmit(submit)}>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="lg:text-base text-sm" htmlFor="name">
@@ -76,66 +143,48 @@ export const Widget = ({ projectId }) => {
                       </Label>
                       <div className="relative mt-1 focus-within:text-[#4a3aff]">
                         <Input
-                          className="rounded-full p-7 overflow-hidden text-ellipsis whitespace-nowrap"
+                          className="w-full rounded-full p-7 overflow-hidden text-ellipsis"
                           id="name"
                           placeholder="Insira seu nome"
+                          {...register("name")}
                         />
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                        <div className="absolute inset-y-0 right-0 mb-4 flex items-center pr-3 pointer-events-none">
                           <NameIcon className="h-5 w-5 text-pretty" />
                         </div>
+                        <div className="min-h-[1rem]">
+                          {errors.name && (
+                            <p className="text-xs text-red-500 ">
+                              {errors.name.message}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label className="lg:text-base text-sm" htmlFor="email">
-                        E-mail
+                      <Label className="lg:text-base text-sm" htmlFor="name">
+                        Email
                       </Label>
                       <div className="relative mt-1 focus-within:text-[#4a3aff]">
                         <Input
+                          className="w-full rounded-full p-7 overflow-hidden text-ellipsis"
                           id="email"
-                          type="email"
-                          placeholder="Insira seu e-mail"
-                          className="rounded-full p-7 overflow-hidden text-ellipsis whitespace-nowrap"
+                          placeholder="Insira seu email"
+                          {...register("email")}
                         />
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                        <div className="absolute inset-y-0 right-0 mb-4 flex items-center pr-1.5 pointer-events-none">
                           <EmailIcon className="h-5 w-6 text-pretty" />
                         </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="tel" className="lg:text-base text-sm">
-                        Numero de Telefone
-                      </Label>
-                      <div className="relative mt-1 focus-within:text-[#4a3aff]">
-                        <Input
-                          id="tel"
-                          placeholder="(83) 99999-9999"
-                          className="rounded-full p-7  overflow-hidden text-ellipsis whitespace-nowrap"
-                        />
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-2">
-                          <TelIcon className="h-6 w-6 text-pretty" />
+                        <div className="min-h-[1rem]">
+                          {errors.email && (
+                            <p className="text-xs text-red-500 ml-2">
+                              {errors.email.message}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="question"
-                        className="lg:text-base text-sm"
-                      >
-                        Quero falar sobre
-                      </Label>
-                      <div className="relative mt-1 focus-within:text-[#4a3aff]">
-                        <Input
-                          id="about"
-                          type="text"
-                          placeholder="Serviço/Produto"
-                          className="rounded-full p-7  overflow-hidden text-ellipsis whitespace-nowrap"
-                        />
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 ">
-                          <QuestionIcon className="h-8 w-6 text-pretty" />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col space-y-2">
+
+                    <div className="flex flex-col space-y-2 mt-3">
                       <Label className="lg:text-base text-sm">
                         Classifique sua experiência
                       </Label>
@@ -161,8 +210,32 @@ export const Widget = ({ projectId }) => {
                     <Textarea
                       id="feedback"
                       placeholder="Caso você tenha um feedback adicional, por favor, escreva aqui..."
-                      className=" p-3 text-sm lg:min-h-[150px] min-h-[100px] w-full overflow-hidden text-ellipsis"
+                      className="p-3 text-sm lg:min-h-[150px] min-h-[100px] w-full overflow-hidden text-ellipsis"
+                      {...register("feedback")}
                     />
+                    <p className="text-sm text-pretty">
+                      {feedbackLength}/255 caracteres
+                    </p>
+                    {errors.feedback && (
+                      <p className="text-red-500 text-sm">
+                        {errors.feedback.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center space-x-2 focus-within:text-[#4a3aff]">
+                    <Checkbox id="terms" />
+                    <label
+                      htmlFor="terms"
+                      className="lg:text-base text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 active:text-[#4a3aff]"
+                    >
+                      Aceito os termos e condições
+                    </label>
+                    {errors.terms && (
+                      <p className="text-red-500 text-sm">
+                        {errors.terms.message}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-1 py-2">
@@ -174,15 +247,6 @@ export const Widget = ({ projectId }) => {
                         Enviar Feedback
                       </span>
                     </Button>
-                  </div>
-                  <div className="flex items-center space-x-2 focus-within:text-[#4a3aff]">
-                    <Checkbox id="terms" />
-                    <label
-                      htmlFor="terms"
-                      className="lg:text-base text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 active:text-[#4a3aff] "
-                    >
-                      Aceito os termos e condições
-                    </label>
                   </div>
                 </form>
               </div>
@@ -212,6 +276,7 @@ function StarIcon(props) {
     </svg>
   );
 }
+
 function ChatIcon(props) {
   return (
     <svg
@@ -247,7 +312,7 @@ function NameIcon(props) {
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={1}
-      className={` ${props.className}`}
+      className={props.className}
       {...props}
     >
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
@@ -255,6 +320,7 @@ function NameIcon(props) {
     </svg>
   );
 }
+
 function EmailIcon(props) {
   return (
     <svg
@@ -266,49 +332,11 @@ function EmailIcon(props) {
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={1}
-      className={` ${props.className}`}
+      className={props.className}
       {...props}
     >
       <rect width={20} height={16} x={2} y={4} rx={2} />
       <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-    </svg>
-  );
-}
-function TelIcon(props) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={24}
-      height={24}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={1}
-      className={` ${props.className}`}
-      {...props}
-    >
-      <rect width={14} height={20} x={5} y={2} rx={2} ry={2} />
-      <path d="M12 18h.01" />
-    </svg>
-  );
-}
-function QuestionIcon(props) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={24}
-      height={24}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={1}
-      className={` ${props.className}`}
-      {...props}
-    >
-      <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" />
     </svg>
   );
 }
